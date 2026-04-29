@@ -75,16 +75,19 @@ pip install -r requirements.txt --no-build-isolation
 
 - Run `AirSimNH.exe`, hanging up the application
 - Run `telemetry_map.py` to visualize the drone's telemetry data on a global map
-    - ```Bash
-    - cd workspace
-    - python telemetry_map.py```
-    - Then you will see a window named `Global Delivery Map`, it indicates the path of drone
+```Bash
+cd workspace
+python telemetry_map.py
+```
+Then you will see a window named `Global Delivery Map`, it indicates the path of drone.
 - Run `autonomous_delivery.py` to execute the hybrid navigation algorithm
-    - ```Bash
-    - python autonomous_delivery.py```
-    - Then you will see a window named `Hybrid Navigator`
-    - Click on the map to set the start (Green) and end (Red) points for delivery. The drone will autonomously navigate while avoiding obstacles.
-    - After planning the path, you will see 3 choices:
-        - Press `s` to execute the planned path in AirSim
-        - Press `q` to quit the program
-    - After the planned path executed, you can press `r` to reset the start and end and run again.
+```Bash
+python autonomous_delivery.py
+```
+
+Then you will see a window named `Hybrid Navigator`.
+   - Click on the map to set the start (Green) and end (Red) points for delivery. The drone will autonomously navigate while avoiding obstacles.
+   - After planning the path, you will see 3 choices:
+      - Press `s` to execute the planned path in AirSim
+      - Press `q` to quit the program
+      - After the planned path executed, you can press `r` to reset the start and end and run again.
