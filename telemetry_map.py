@@ -19,8 +19,8 @@ GEOFENCE = {
 # 2. Coordinate Mapper (AirSim NED -> OpenCV Screen)
 # ==========================================
 SCALE = 2.56        # 1 meter in AirSim = 2 pixels on screen
-OFFSET_X = 512   # Center X of the 800x800 canvas
-OFFSET_Y = 512   # Center Y of the 800x800 canvas
+OFFSET_X = 512   # Center X of the 600x600 canvas
+OFFSET_Y = 512   # Center Y of the 600x600 canvas
 
 def world_to_pixel(airsim_x, airsim_y):
     # AirSim Y (East) maps to OpenCV X (Right)
@@ -34,8 +34,8 @@ def main():
     client = airsim.MultirotorClient()
     client.confirmConnection()
     
-    cv2.namedWindow("CS530 Global Delivery Map", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("CS530 Global Delivery Map", 1024, 1024)
+    cv2.namedWindow("Global Delivery Map", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Global Delivery Map", 600, 600)
     print("[Telemetry] Map is live. Press 'Q' to exit.")
     
     path_history = []
@@ -119,7 +119,7 @@ def main():
             cv2.putText(canvas, text, (20, 35 + i*25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
 
         # 8. Display Frame
-        cv2.imshow("CS530 Global Delivery Map", canvas)
+        cv2.imshow("Global Delivery Map", canvas)
         if cv2.waitKey(33) & 0xFF == ord('q'):
             print("[Telemetry] Shutting down global map.")
             break

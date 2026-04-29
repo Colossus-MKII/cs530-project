@@ -23,7 +23,7 @@ SCALE = 2.56
 OFFSET = 512
 
 # Flight & Control Parameters
-CRUISE_ALTITUDE = -15.0  # Meters (Negative Z is UP)
+CRUISE_ALTITUDE = -10.0  # Meters (Negative Z is UP)
 MAX_SPEED = 6.0          
 CONTROL_HZ = 10.0        
 WP_TOLERANCE = 2.5       
@@ -179,9 +179,7 @@ def start_flight(pixel_path):
         obs_sectors = parse_lidar(lidar_data)
         min_lidar = np.min(obs_sectors)
 
-        # ----------------------------------------------------
-        # [FIX] REFINED COLLISION DETECTION (Timestamp-Based)
-        # ----------------------------------------------------
+        # REFINED COLLISION DETECTION (Timestamp-Based)
         curr_coll = client.simGetCollisionInfo()
         # Trigger ONLY if has_collided is true AND it's a NEW event
         if curr_coll.has_collided and curr_coll.time_stamp > baseline_time:
@@ -270,7 +268,10 @@ def mouse_event(ev, x, y, fl, pr):
 
 def main():
     global trigger, path, pts
-    win_name = "CS530 Hybrid Navigator"
+    win_name = "Hybrid Navigator"
+    cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(win_name, 600, 600)
+    cv2.moveWindow(win_name, 50, 50)
     cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(win_name, mouse_event)
     print("\n" + "="*50 + "\n   SYSTEM READY: CLICK START AND END POINTS\n" + "="*50)
