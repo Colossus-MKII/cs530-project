@@ -56,7 +56,7 @@ def main():
     print("[Scanner] Processing Depth data into Obstacle Matrix...")
     # Convert depth data to a 2D float array (Each pixel represents distance in meters)
     depth_array = airsim.list_to_2d_float_array(responses[1].image_data_float, responses[1].width, responses[1].height)
-    depth_resized = cv2.resize(depth_array, (800, 800), interpolation=cv2.INTER_NEAREST)
+    depth_resized = cv2.resize(depth_array, (1024, 1024), interpolation=cv2.INTER_NEAREST)
 
     # Logic: Drone is at 200m height. 
     # If distance recorded is less than (200 - 5) = 195m, the object is taller than 5m.

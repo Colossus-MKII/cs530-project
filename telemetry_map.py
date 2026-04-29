@@ -11,16 +11,16 @@ import os
 # Assuming Base(0,0) is roughly the center of the neighborhood.
 # ==========================================
 GEOFENCE = {
-    "x_min": -125, "x_max": 125,
-    "y_min": -125, "y_max": 125
+    "x_min": -175, "x_max": 175,
+    "y_min": -175, "y_max": 175
 }
 
 # ==========================================
 # 2. Coordinate Mapper (AirSim NED -> OpenCV Screen)
 # ==========================================
-SCALE = 2        # 1 meter in AirSim = 2 pixels on screen
-OFFSET_X = 400   # Center X of the 800x800 canvas
-OFFSET_Y = 400   # Center Y of the 800x800 canvas
+SCALE = 2.56        # 1 meter in AirSim = 2 pixels on screen
+OFFSET_X = 512   # Center X of the 800x800 canvas
+OFFSET_Y = 512   # Center Y of the 800x800 canvas
 
 def world_to_pixel(airsim_x, airsim_y):
     # AirSim Y (East) maps to OpenCV X (Right)
@@ -34,7 +34,8 @@ def main():
     client = airsim.MultirotorClient()
     client.confirmConnection()
     
-    cv2.namedWindow("CS530 Global Delivery Map", cv2.WINDOW_AUTOSIZE)
+    cv2.namedWindow("CS530 Global Delivery Map", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("CS530 Global Delivery Map", 1024, 1024)
     print("[Telemetry] Map is live. Press 'Q' to exit.")
     
     path_history = []
@@ -45,7 +46,7 @@ def main():
     
     if has_bg:
         bg_image = cv2.imread(bg_image_path)
-        bg_image = cv2.resize(bg_image, (800, 800)) 
+        bg_image = cv2.resize(bg_image, (1024, 1024)) 
         print("[Telemetry] Satellite background loaded.")
     else:
         print("[Telemetry] WARNING: 'satellite_map.png' not found. Using black canvas.")
@@ -55,7 +56,7 @@ def main():
         if has_bg:
             canvas = bg_image.copy()
         else:
-            canvas = np.zeros((800, 800, 3), dtype=np.uint8)
+            canvas = np.zeros((1024, 1024, 3), dtype=np.uint8)
             
         # 2. Render Geofence (The 250x250m absolute boundary)
         gf_p1 = world_to_pixel(GEOFENCE["x_min"], GEOFENCE["y_min"])
