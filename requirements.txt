@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+
+numpy
+pandas
+matplotlib
+
+msgpack-rpc-python
+airsim
+
+gymnasium
+stable-baselines3
+
+torch==2.7.1+cu118
+torchvision
+torchaudio
