@@ -10,7 +10,7 @@ CS530/
 ├── AirSimNH.zip            # (DO NOT commit) Original environment package
 └── workspace/              # (Git Repository) Our Python codebase
     └── requirements.txt
-
+```
 ## 1.1 AirSim 3D Environment Setup
 
 - Download the latest AirSim package `AirSimNH.zip` from https://github.com/Microsoft/AirSim/releases and Extract the Environment
