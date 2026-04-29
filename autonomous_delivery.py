@@ -153,7 +153,7 @@ def start_flight(pixel_path):
     # Force climb to 5m to ignore ground jitter
     client.moveToPositionAsync(start_x, start_y, -5.0, 3).join() 
     
-    # [FIX] Get the BASELINE time_stamp instead of non-existent collision_count
+    # Get the BASELINE time_stamp instead of non-existent collision_count
     # This ignores any collisions that occurred before this stable moment.
     init_coll = client.simGetCollisionInfo()
     baseline_time = init_coll.time_stamp
