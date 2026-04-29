@@ -6,6 +6,7 @@ numpy
 pandas
 matplotlib
 
+opencv-python
 msgpack-rpc-python
 airsim
 
