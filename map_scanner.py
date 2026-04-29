@@ -46,8 +46,8 @@ def main():
     print("[Scanner] Processing RGB map...")
     img1d = np.frombuffer(responses[0].image_data_uint8, dtype=np.uint8)
     img_rgb = img1d.reshape(responses[0].height, responses[0].width, 3)
-    # Resize to our standard 800x800 radar resolution
-    map_visual = cv2.resize(img_rgb, (800, 800))
+    # Resize to our standard 1024x1024 radar resolution
+    map_visual = cv2.resize(img_rgb, (1024, 1024))
     cv2.imwrite("satellite_map.png", map_visual)
 
     # ==========================================
