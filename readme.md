@@ -1,11 +1,13 @@
 # How to build up the environment and run the program
-**Video Demo**
+**Project Video Part1 (A* + APF)**
 
 
 
 [![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/a9YAp_fo9fU/maxresdefault.jpg)](https://www.youtube.com/watch?v=a9YAp_fo9fU)
 
+**Project Video Part2 (Train DQN)**
 
+[![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/LNvynDGoq9k/maxresdefault.jpg)](https://www.youtube.com/watch?v=LNvynDGoq9k)
 
 ## 1 Environment Setup & Installation
 This repository contains the algorithm and control codebase for the CS530 autonomous drone delivery project. Our simulation relies on Microsoft AirSim built on Unreal Engine.
