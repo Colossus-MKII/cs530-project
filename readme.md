@@ -3,7 +3,7 @@
 
 
 
-[![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/a9YAp_fo9fU/0.jpg)](https://www.youtube.com/watch?v=a9YAp_fo9fU)
+[![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/a9YAp_fo9fU/maxresdefault.jpg)](https://www.youtube.com/watch?v=a9YAp_fo9fU)
 
 
 
