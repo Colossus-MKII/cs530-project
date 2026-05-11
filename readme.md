@@ -1,20 +1,27 @@
 # How to build up the environment and run the program
+
 **Project Video Part1 (A* + APF)**
 
-
-
 [![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/a9YAp_fo9fU/maxresdefault.jpg)](https://www.youtube.com/watch?v=a9YAp_fo9fU)
+
+---
 
 **Project Video Part2 (Train DQN)**
 
 [![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/LNvynDGoq9k/maxresdefault.jpg)](https://www.youtube.com/watch?v=LNvynDGoq9k)
 
-## 1 Environment Setup & Installation
+---
+
+# 1 Environment Setup & Installation
+
 This repository contains the algorithm and control codebase for the CS530 autonomous drone delivery project. Our simulation relies on Microsoft AirSim built on Unreal Engine.
 
-To ensure a smooth setup and prevent version control bloat, we strictly separate the heavy 3D physics assets from our Python codebase. 
+To ensure a smooth setup and prevent version control bloat, we strictly separate the heavy 3D physics assets from our Python codebase.
 
-**Required Directory Structure:**
+---
+
+## Required Directory Structure
+
 ```text
 CS530/
 ├── AirSimNH/               # (DO NOT commit) The extracted AirSim 3D environment
@@ -22,13 +29,22 @@ CS530/
 └── workspace/              # (Git Repository) Our Python codebase
     └── requirements.txt
 ```
-### 1.1 AirSim 3D Environment Setup
 
-- Download the latest AirSim package `AirSimNH.zip` from https://github.com/Microsoft/AirSim/releases and Extract the Environment
-- Configure the Drone (settings.json)
-By default, AirSim spawns a car. We need to configure it to spawn a quadcopter drone at the absolute origin (0,0,0).
-- Navigate to `C:\Users\<YourUsername>\Documents\AirSim\` 
-- Edit the `settings.json` file as following:
+---
+
+## 1.1 AirSim 3D Environment Setup
+
+- Download the latest AirSim package `AirSimNH.zip`
+- Extract the environment
+- Configure AirSim drone settings
+
+Navigate to:
+
+```text
+C:\Users\<YourUsername>\Documents\AirSim\
+```
+
+Edit `settings.json`:
 
 ```json
 {
@@ -38,7 +54,9 @@ By default, AirSim spawns a car. We need to configure it to spawn a quadcopter d
   "Vehicles": {
     "Drone1": {
       "VehicleType": "SimpleFlight",
-      "X": 0, "Y": 0, "Z": 0,
+      "X": 0,
+      "Y": 0,
+      "Z": 0,
       "Yaw": 0,
       "Sensors": {
         "LidarSensor1": {
@@ -57,8 +75,12 @@ By default, AirSim spawns a car. We need to configure it to spawn a quadcopter d
         "DistanceSensor_Down": {
           "SensorType": 5,
           "Enabled": true,
-          "X": 0, "Y": 0, "Z": 0,
-          "Yaw": 0, "Pitch": -90, "Roll": 0,
+          "X": 0,
+          "Y": 0,
+          "Z": 0,
+          "Yaw": 0,
+          "Pitch": -90,
+          "Roll": 0,
           "DrawDebugPoints": false
         }
       }
@@ -67,38 +89,168 @@ By default, AirSim spawns a car. We need to configure it to spawn a quadcopter d
   "ViewMode": "FlyWithMe"
 }
 ```
-- Relaunch `AirSimNH.exe`. You should see a black quadcopter parked on the street.
 
-### 1.2 Python Development Environment
-- Create Conda Environment
+Relaunch `AirSimNH.exe`.
+
+You should see a black quadcopter placed on the street.
+
+---
+
+## 1.2 Python Development Environment
+
+### Create Conda Environment
+
 ```bash
 conda create -n cs530 python=3.9 -y
 conda activate cs530
 ```
-- Installing Dependencies
-```Bash
+
+### Install Dependencies
+
+```bash
 pip install -r requirements.txt --no-build-isolation
 ```
 
-## 2 How to use the navigation system?
+---
 
-This part uses A* path planning and Artificial Potential Field to avoid colliding with obstacle.
+# 2 How to use the navigation system?
 
-- Run `AirSimNH.exe`, hanging up the application
-- Run `telemetry_map.py` to visualize the drone's telemetry data on a global map
-```Bash
-cd workspace
+This part uses A* path planning and Artificial Potential Field (APF) to avoid obstacle collisions.
+
+---
+
+## Run telemetry visualization
+
+```bash
 python telemetry_map.py
 ```
-Then you will see a window named `Global Delivery Map`, it indicates the path of drone.
-- Run `autonomous_delivery.py` to execute the hybrid navigation algorithm
-```Bash
+
+A window named `Global Delivery Map` will appear to visualize the drone trajectory.
+
+---
+
+## Run autonomous delivery system
+
+```bash
 python autonomous_delivery.py
 ```
 
-Then you will see a window named `Hybrid Navigator`.
-   - Click on the map to set the start (Green) and end (Red) points for delivery. The drone will autonomously navigate while avoiding obstacles.
-   - After planning the path, you will see 3 choices:
-      - Press `s` to execute the planned path in AirSim
-      - Press `q` to quit the program
-      - After the planned path executed, you can press `r` to reset the start and end and run again.
+A window named `Hybrid Navigator` will appear.
+
+### Controls
+
+- Click to select:
+  - Start point (Green)
+  - Goal point (Red)
+
+### Keyboard Commands
+
+- `s` → execute planned path
+- `r` → reset and restart
+- `q` → quit
+
+---
+
+# 3 Reinforcement Learning (DQN Navigation System)
+
+This project also includes a reinforcement learning based drone navigation framework using Deep Q-Network (DQN).
+
+The RL system is implemented under:
+
+```text
+gyp_rl/
+```
+
+---
+
+# 3.1 RL Project Structure
+
+```text
+gyp_rl/
+├── analysis_results/          # training analysis and experiment outputs
+├── runs/                      # saved training runs and logs
+├── airsim_env.py              # AirSim RL environment
+├── analysis.py                # experiment analysis
+├── config.py                  # training configuration
+├── map_sampler.py             # random map / sampling logic
+├── Reward_states.md           # detailed reward design explanation
+├── RL-training-plan.md        # complete RL training roadmap
+├── sensor_probe.py            # sensor debugging tools
+├── test_reward.py             # reward testing utilities
+├── train_dqn.py               # DQN training entry point
+├── visualize_safe_mask.py     # visualization utilities
+└── __init__.py
+```
+
+---
+
+# 3.2 RL Training Pipeline
+
+The RL framework follows a staged curriculum-learning strategy:
+
+1. Train in soft environments
+2. Train in hard environments
+3. Improve robustness under dense obstacles
+4. Future work:
+   - Multi-altitude training
+   - CNN-based visual navigation
+   - Cross-environment generalization
+
+The current implementation uses:
+
+- DQN
+- Lidar sectorization
+- Discrete action space
+- Reward shaping
+- Safety constraints
+
+---
+
+# 3.3 Reward Function Design
+
+Detailed reward design and safety constraint logic are documented in:
+
+```text
+gyp_rl/Reward_states.md
+```
+
+This document explains:
+
+- Soft vs hard environment reward differences
+- Progress reward
+- Obstacle penalties
+- Altitude constraints
+- Terminal conditions
+- Reward philosophy
+
+---
+
+# 3.4 RL Training Roadmap
+
+The complete RL development and experiment roadmap is documented in:
+
+```text
+gyp_rl/RL-training-plan.md
+```
+
+This includes:
+
+- Environment design
+- Sensor configuration
+- State representation
+- Action space
+- Multi-stage training strategy
+- CNN future work
+- Multi-altitude training
+- Generalization testing
+- Noise robustness experiments
+
+---
+
+# 3.5 Run DQN Training
+
+Start RL training:
+
+```bash
+python gyp_rl/train_dqn.py
+```

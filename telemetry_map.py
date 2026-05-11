@@ -41,7 +41,7 @@ def main():
     path_history = []
     
     # Load Satellite Background if available
-    bg_image_path = "satellite_map.png"
+    bg_image_path = "figures/system/satellite_map.png"
     has_bg = os.path.exists(bg_image_path)
     
     if has_bg:

@@ -228,64 +228,58 @@ def get_lidar_sector_distances(client, lidar_name="LidarSensor1"):
         "right": min_dist(right_mask)
     }
 
-def get_lidar_18_sector_distances(
+def get_lidar_36x3_sector_distances(
     client,
     lidar_name="LidarSensor1",
     max_range=15.0,
-    z_filter=2.0
+    h_sectors=36,
+    v_layers=3,
+    vertical_fov=(-30.0, 30.0)
 ):
-    """
-    Convert Lidar point cloud into 18 sector distances.
-
-    FOV: -90° to +90°
-    Sector size: 10°
-    Output: numpy array with shape (18,)
-
-    Each value is the nearest obstacle distance in that sector.
-    If a sector has no points, use max_range.
-    """
-
     points = get_lidar_points(client, lidar_name)
 
     if points.shape[0] == 0:
-        return np.full(18, max_range, dtype=np.float32)
+        return np.full((v_layers, h_sectors), max_range, dtype=np.float32)
 
     x = points[:, 0]
     y = points[:, 1]
     z = points[:, 2]
 
-    horizontal_dist = np.sqrt(x ** 2 + y ** 2)
-    angles = np.degrees(np.arctan2(y, x))
+    distances_3d = np.linalg.norm(points, axis=1)
 
-    # Only keep forward-facing lidar points and ignore extreme vertical points
+    horizontal_angles = np.degrees(np.arctan2(y, x))
+    horizontal_angles = (horizontal_angles + 360) % 360
+
+    xy_dist = np.sqrt(x ** 2 + y ** 2)
+    vertical_angles = np.degrees(np.arctan2(z, xy_dist))
+
     valid_mask = (
-        (x > 0) &
-        (angles >= -90) &
-        (angles <= 90) &
-        (np.abs(z) < z_filter)
+        (distances_3d > 0.1) &
+        (distances_3d <= max_range) &
+        (vertical_angles >= vertical_fov[0]) &
+        (vertical_angles <= vertical_fov[1])
     )
 
-    sector_distances = np.full(18, max_range, dtype=np.float32)
+    grid = np.full((v_layers, h_sectors), max_range, dtype=np.float32)
 
-    valid_angles = angles[valid_mask]
-    valid_distances = horizontal_dist[valid_mask]
+    valid_h_angles = horizontal_angles[valid_mask]
+    valid_v_angles = vertical_angles[valid_mask]
+    valid_distances = distances_3d[valid_mask]
 
-    for i in range(18):
-        angle_min = -90 + i * 10
-        angle_max = angle_min + 10
+    h_bin_size = 360.0 / h_sectors
+    v_min, v_max = vertical_fov
+    v_bin_size = (v_max - v_min) / v_layers
 
-        sector_mask = (
-            (valid_angles >= angle_min) &
-            (valid_angles < angle_max)
-        )
+    for h_angle, v_angle, dist in zip(valid_h_angles, valid_v_angles, valid_distances):
+        h_idx = int(h_angle // h_bin_size)
+        v_idx = int((v_angle - v_min) // v_bin_size)
 
-        if np.any(sector_mask):
-            sector_distances[i] = min(
-                float(np.min(valid_distances[sector_mask])),
-                max_range
-            )
+        h_idx = min(max(h_idx, 0), h_sectors - 1)
+        v_idx = min(max(v_idx, 0), v_layers - 1)
 
-    return sector_distances
+        grid[v_idx, h_idx] = min(grid[v_idx, h_idx], dist)
+
+    return grid
 
 
 # =========================
@@ -428,7 +422,6 @@ def get_all_sensor_data(client):
         "distance_front": get_distance_sensor_data(client),
         "lidar_summary": get_lidar_summary(client),
         "lidar_sector_distances": get_lidar_sector_distances(client),
-        # "lidar_18_sector_distances": get_lidar_18_sector_distances(client),
         "depth_summary": get_depth_summary(client),
         "depth_sector_distances": get_depth_sector_distances(client)
     }
@@ -481,11 +474,7 @@ if __name__ == "__main__":
 
     time.sleep(1.0)
 
-    sectors = get_lidar_18_sector_distances(client)
 
-    print("18-sector lidar distances at 3m altitude:")
-    print(sectors)
-    print("shape:", sectors.shape)
 
     # optional: print current position
     state = get_drone_state(client)

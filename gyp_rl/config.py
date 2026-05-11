@@ -71,6 +71,8 @@ CV2_COLORS = {
     "start": (0, 255, 0),
     "goal": (0, 0, 255),
     "roi": (0, 0, 255),
+    "too_low": (0, 165, 255),
+    "too_high": (128, 0, 128),
 }
 
 # Matplotlib uses color names
@@ -83,4 +85,6 @@ MPL_COLORS = {
     "start": "green",
     "goal": "red",
     "roi": "red",
+    "too_low": "orange",
+    "too_high": "purple",
 }

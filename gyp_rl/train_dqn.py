@@ -15,9 +15,11 @@ class DQN(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(state_dim, 128),
+            nn.Linear(state_dim, 256),
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, action_dim)
         )
@@ -86,32 +88,35 @@ def train_step(policy_net, target_net, replay_buffer, optimizer, batch_size, gam
 
     optimizer.zero_grad()
     loss.backward()
+    torch.nn.utils.clip_grad_norm_(policy_net.parameters(), max_norm=1.0)
     optimizer.step()
 
     return loss.item()
 
 
 def main():
-    num_episodes = 300
+    num_episodes = 800
     batch_size = 64
     gamma = 0.99
 
     epsilon = 1.0
     epsilon_min = 0.05
-    epsilon_decay = 0.98
+    epsilon_decay = 0.995
 
     target_update_freq = 5
 
     success_count = 0
     collision_count = 0
     timeout_count = 0
+    too_low_count = 0
     out_of_roi_count = 0
+    too_high_count = 0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
     env = AirSimDroneEnv(
-        init_altitude=-3.0,
+        init_altitude=-10.0,
         max_steps=600,
         action_duration=0.2,
         velocity=4.0,
@@ -139,6 +144,10 @@ def main():
             "epsilon",
             "avg_loss",
             "final_distance",
+            "final_altitude",
+            "min_lidar",
+            "ever_too_high",
+            "ever_out_of_roi",
             "result"
         ])
 
@@ -156,6 +165,9 @@ def main():
     try:
         for episode in range(num_episodes):
             print(f"\n===== Episode {episode + 1} / {num_episodes} =====")
+
+            episode_too_high = False
+            episode_out_of_roi = False
 
             state = env.reset(mode="train")
 
@@ -177,6 +189,12 @@ def main():
                 )
 
                 next_state, reward, done, info = env.step(action)
+
+                if info.get("too_high"):
+                    episode_too_high = True
+
+                if info.get("out_of_roi"):
+                    episode_out_of_roi = True
 
                 # current_pos = env.get_position_xy()
                 current_pos = env.get_position_xyz()
@@ -215,26 +233,27 @@ def main():
             if (episode + 1) % target_update_freq == 0:
                 target_net.load_state_dict(policy_net.state_dict())
 
-
-
             avg_loss = total_loss / loss_count if loss_count > 0 else 0.0
             final_distance = env._distance_to_goal()
 
             if info.get("goal_reached"):
                 result = "goal_reached"
                 success_count += 1
-
             elif info.get("collision"):
                 result = "collision"
                 collision_count += 1
-
-            elif info.get("out_of_roi"):
-                result = "out_of_roi"
-                out_of_roi_count += 1
-
             elif info.get("timeout"):
                 result = "timeout"
                 timeout_count += 1
+            elif info.get("too_low"):
+                result = "too_low"
+                too_low_count += 1
+            elif info.get("too_high"):
+                result = "too_high"
+                too_high_count += 1
+            elif info.get("out_of_roi"):
+                result = "out_of_roi"
+                out_of_roi_count += 1
             else:
                 result = "unknown"
 
@@ -242,7 +261,9 @@ def main():
                 env.sampler.save_altitude_plot(
                     path=path,
                     episode=episode + 1,
-                    result=result
+                    result=result,
+                    min_flight_altitude=env.min_flight_altitude,
+                    max_flight_altitude=env.max_flight_altitude
                 )
 
                 env.sampler.save_trajectory_plot(
@@ -255,12 +276,13 @@ def main():
                 )
 
                 env.sampler.save_trajectory_3d_plot(
-                    start=(env.start[0], env.start[1], env.start_z),
-                    goal=(env.goal[0], env.goal[1], env.goal_z),
+                    start=env.start,
+                    goal=env.goal,
                     path=path,
                     episode=episode + 1,
-                    # roi=env.training_roi,
-                    result=result
+                    result=result,
+                    min_flight_altitude=env.min_flight_altitude,
+                    max_flight_altitude=env.max_flight_altitude
                 )
 
             finished_episodes = episode + 1
@@ -272,17 +294,21 @@ def main():
 
                     env.start[0],
                     env.start[1],
-                    env.start_z,
+                    env.start[2],
 
                     env.goal[0],
                     env.goal[1],
-                    env.goal_z,
+                    env.goal[2],
 
                     total_reward,
                     step + 1,
                     epsilon,
                     avg_loss,
                     final_distance,
+                    info.get("altitude", None),
+                    info.get("min_lidar", None),
+                    episode_too_high,
+                    episode_out_of_roi,
                     result
                 ])
 

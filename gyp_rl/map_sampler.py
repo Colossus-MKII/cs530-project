@@ -13,7 +13,7 @@ SCALE = 2.56
 OFFSET_X = 512
 OFFSET_Y = 512
 
-OBSTACLE_GRID_PATH = r"C:\Users\hzgyp\PycharmProjects\CS530-project\obstacle_grid.png"
+OBSTACLE_GRID_PATH = r"/figures/system/obstacle_grid.png"
 
 
 def pixel_to_world(px, py):
@@ -184,7 +184,14 @@ class MapSampler:
 
         print(f"[SAVE] {save_path}")
 
-    def save_altitude_plot(self, path, episode, result="unknown"):
+    def save_altitude_plot(
+            self,
+            path,
+            episode,
+            result="unknown",
+            min_flight_altitude=None,
+            max_flight_altitude=None
+    ):
         if not hasattr(self, "run_dir"):
             raise RuntimeError("Run directory not initialized.")
 
@@ -194,26 +201,40 @@ class MapSampler:
         steps = list(range(len(path)))
         alts = [-p[2] for p in path]
 
-        # color
-        if result == "goal_reached":
-            color = "green"
-        elif result == "collision":
-            color = "red"
-        elif result == "timeout":
-            color = "blue"
-        elif result == "out_of_roi":
-            color = "purple"
-        else:
-            color = "black"
+        color = self._mpl_result_color(result)
 
         plt.figure(figsize=(8, 4))
-        plt.plot(steps, alts, color=color, linewidth=2)
+        plt.plot(steps, alts, color=color, linewidth=2, label="altitude")
+
+        if min_flight_altitude is not None:
+            plt.axhline(
+                y=min_flight_altitude,
+                linestyle="--",
+                linewidth=1.5,
+                color="gray",
+                label=f"min altitude = {min_flight_altitude}m"
+            )
+
+        if max_flight_altitude is not None:
+            plt.axhline(
+                y=max_flight_altitude,
+                linestyle="--",
+                linewidth=1.5,
+                color="black",
+                label=f"max altitude = {max_flight_altitude}m"
+            )
 
         plt.xlabel("step")
         plt.ylabel("altitude (m)")
         plt.title(f"Altitude Curve - Ep {episode} ({result})")
-
         plt.grid(True)
+        plt.legend()
+
+        if min_flight_altitude is not None and max_flight_altitude is not None:
+            plt.ylim(
+                max(0, min_flight_altitude - 1),
+                max_flight_altitude + 2
+            )
 
         save_path = os.path.join(
             self.run_dir,
@@ -279,7 +300,16 @@ class MapSampler:
         cv2.imwrite(save_path, img)
         print(f"[SAVE] {save_path}")
 
-    def save_trajectory_3d_plot(self, start, goal, path, episode, result="unknown"):
+    def save_trajectory_3d_plot(
+            self,
+            start,
+            goal,
+            path,
+            episode,
+            result="unknown",
+            min_flight_altitude=None,
+            max_flight_altitude=None
+    ):
         if not hasattr(self, "run_dir"):
             raise RuntimeError("Run directory not initialized. Call init_run_dir() first.")
 
@@ -300,26 +330,119 @@ class MapSampler:
         fig = plt.figure(figsize=(8, 7))
         ax = fig.add_subplot(111, projection="3d")
 
-        ax.plot(xs, ys, alts, linewidth=2.5, color=path_color, label="drone path")
+        ax.plot(
+            xs,
+            ys,
+            alts,
+            linewidth=3,
+            color=path_color,
+            label="drone path"
+        )
 
-        ax.scatter(start[0], start[1], start_alt, s=80, color=start_color, label="start")
-        ax.scatter(goal[0], goal[1], goal_alt, s=80, color=goal_color, label="goal")
+        ax.scatter(
+            start[0],
+            start[1],
+            start_alt,
+            s=80,
+            color=start_color,
+            label="start"
+        )
 
-        ax.scatter(xs[-1], ys[-1], alts[-1], s=60, marker="x", color=path_color, label="final")
+        ax.scatter(
+            goal[0],
+            goal[1],
+            goal_alt,
+            s=80,
+            color=goal_color,
+            label="goal"
+        )
+
+        ax.scatter(
+            xs[-1],
+            ys[-1],
+            alts[-1],
+            s=70,
+            marker="x",
+            color=path_color,
+            label="final"
+        )
+
+        # =========================
+        # Altitude constraint planes
+        # =========================
+        if min_flight_altitude is not None and max_flight_altitude is not None:
+            x_min = min(xs + [start[0], goal[0]])
+            x_max = max(xs + [start[0], goal[0]])
+            y_min = min(ys + [start[1], goal[1]])
+            y_max = max(ys + [start[1], goal[1]])
+
+            # 防止 path 太短导致平面太窄
+            if abs(x_max - x_min) < 1e-6:
+                x_min -= 1
+                x_max += 1
+
+            if abs(y_max - y_min) < 1e-6:
+                y_min -= 1
+                y_max += 1
+
+            xx, yy = np.meshgrid(
+                np.linspace(x_min, x_max, 12),
+                np.linspace(y_min, y_max, 12)
+            )
+
+            zz_min = np.full_like(xx, min_flight_altitude)
+            zz_max = np.full_like(xx, max_flight_altitude)
+
+            ax.plot_surface(
+                xx,
+                yy,
+                zz_min,
+                alpha=0.15,
+                color="gray",
+                edgecolor="none"
+            )
+
+            ax.plot_surface(
+                xx,
+                yy,
+                zz_max,
+                alpha=0.12,
+                color="black",
+                edgecolor="none"
+            )
+
+            ax.text(
+                x_min,
+                y_min,
+                min_flight_altitude,
+                f"min altitude = {min_flight_altitude}m",
+                color="gray"
+            )
+
+            ax.text(
+                x_min,
+                y_min,
+                max_flight_altitude,
+                f"max altitude = {max_flight_altitude}m",
+                color="black"
+            )
+
+            ax.set_zlim(
+                max(0, min_flight_altitude - 1),
+                max_flight_altitude + 2
+            )
+
+        else:
+            max_alt = max(alts + [start_alt, goal_alt])
+            min_alt = min(alts + [start_alt, goal_alt])
+            ax.set_zlim(max(0, min_alt - 1), max_alt + 1)
 
         ax.set_title(f"Episode {episode}: {result}")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("altitude (m)")
 
-        # make z range cleaner
-        max_alt = max(alts + [start_alt, goal_alt])
-        min_alt = min(alts + [start_alt, goal_alt])
-        ax.set_zlim(max(0, min_alt - 1), max_alt + 1)
-
-        # better viewing angle
         ax.view_init(elev=25, azim=-60)
-
         ax.legend()
 
         save_path = os.path.join(

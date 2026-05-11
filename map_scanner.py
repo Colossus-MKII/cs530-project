@@ -48,7 +48,7 @@ def main():
     img_rgb = img1d.reshape(responses[0].height, responses[0].width, 3)
     # Resize to our standard 1024x1024 radar resolution
     map_visual = cv2.resize(img_rgb, (1024, 1024))
-    cv2.imwrite("satellite_map.png", map_visual)
+    cv2.imwrite("figures/system/satellite_map.png", map_visual)
 
     # ==========================================
     # 5. Process Depth Map (A* Obstacle Matrix)
@@ -66,7 +66,7 @@ def main():
     # Create a visual binary matrix: 
     # 0 (Black) for Obstacles, 255 (White) for Free Space (Streets)
     obstacle_matrix = np.where(depth_resized < threshold_distance, 0, 255).astype(np.uint8)
-    cv2.imwrite("obstacle_grid.png", obstacle_matrix)
+    cv2.imwrite("figures/system/obstacle_grid.png", obstacle_matrix)
     
     # Save the raw numpy array for mathematical calculations.
     # We keep the standard logic: 1 = Obstacle, 0 = Free Space for A* pathfinding.

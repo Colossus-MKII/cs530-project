@@ -18,7 +18,7 @@ except ImportError:
 
 # Map Configuration
 GRID = np.load("astar_grid.npy")        
-BG_IMAGE = cv2.imread("satellite_map.png") 
+BG_IMAGE = cv2.imread("figures/system/satellite_map.png")
 SCALE = 2.56
 OFFSET = 512
 
