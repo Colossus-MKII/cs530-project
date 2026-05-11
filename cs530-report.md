@@ -22,7 +22,7 @@ We choose a town map AirSimNH as our experiment environment (Around 250m × 250m
 
 ### 2.1 Fetch native 2D top-down map and grid map required for pathfinding.
 
-The challenge is AirSim doesn't provide the native topography. So we flied the drone to 200m height to capture a high-resolution (1024 * 1024). Then we processed the image to create `astar_grid.npy` to discretizing obstacles for algorithm use.
+The challenge is AirSim doesn't provide the native topography. So we flew the drone to 200m height to capture a high-resolution (1024 * 1024). Then we processed the image to create `astar_grid.npy` for obstacle discretization and path-planning use.
 <figure align="center">
     <img src="figures/system/satellite_map.png">
     <figcaption>Figure 2: 2D top-down satellite map</figcaption>
@@ -30,7 +30,7 @@ The challenge is AirSim doesn't provide the native topography. So we flied the d
 
 ### 2.2 Create the global delivery map
 
-Then we use `telemetry_map.py` to set up an application from former satellite map as following. In this application, user can fetch the position, altitude, speed information, the boundary of the map, and trace teh drone's flight path.
+Then we use `telemetry_map.py` to set up an application from former satellite map as following. In this application, user can fetch the position, altitude, speed information, the boundary of the map, and trace the drone's flight path.
 <figure align="center">
     <img src="figures/system/telemetry_map.jpg">
     <figcaption>Figure 3: Global Delivery Map</figcaption>
@@ -39,7 +39,7 @@ Then we use `telemetry_map.py` to set up an application from former satellite ma
 ### 2.3 Setup Interactive Interface
 
 And we use the `autonomous_delivery.py` to set up a OpenCV-based GUI for user to choose the start and end.
-The application will use A\* algorithm to plan a path and use Artificial Potential Field (APF) to avoid obstacles that isn't presented in 2D map.
+The application will use A\* algorithm to plan a path and use Artificial Potential Field (APF) to avoid obstacles that are not represented in the 2D map.
 The application also controls the drone's flight in *AirSimNH.exe*.
 <figure align="center">
     <img src="figures/system/autonomous_delivery.jpg">
@@ -72,6 +72,8 @@ The drone's 360-degree Lidar point cloud is compressed into 8 horizontal sectors
 $$\text{Magnitude} \propto (\text{Threshold} - \text{Current Distance})$$
 - **Vector Addition:** The final commanded velocity is the sum of these vectors ($V_{target} = V_{att} + V_{rep}$), enabling smooth, reflex-like evasive maneuvers without stopping.
 
+This lightweight 8-sector representation was designed specifically for the APF controller. In contrast, the RL system described in Chapter 4 uses a significantly denser LiDAR representation to support higher-dimensional policy learning.
+
 ### 3.3 FSM & Anti-Deadlock Recovery Mechanism
 
 The most significant flaw in standard APF is the "Local Minima" trap, where attractive and repulsive forces cancel out, causing the drone to deadlock or oscillate infinitely. To solve this, we designed a Finite State Machine (FSM) with a **Heuristic Recovery Mechanism**.
@@ -96,9 +98,17 @@ elif fsm_state == STATE_AVOID:
 
 After avoiding an obstacle, the drone scans the remaining A* route and snaps to a waypoint with a strictly smaller heuristic value (closer to the destination).
 
+This recovery mechanism significantly reduces oscillation and deadlock behavior compared with standard APF-only navigation.
+
 ## 4. Reinforcement Learning-based Autonomous Navigation
 
 ### 4.1 RL Environment and State Representation
+
+While the previous chapters focused on classical planning-based navigation approaches such as A*, APF, and FSM-based recovery mechanisms, this chapter explores a learning-based alternative using reinforcement learning.
+
+However, the classical pipeline still depends heavily on manually designed navigation heuristics and parameter tuning. In complex environments, APF-based navigation may still experience oscillation, local minima, or inefficient recovery behavior near dense obstacles.
+
+To explore a more adaptive navigation framework, we investigated whether a reinforcement learning agent could directly learn navigation behavior from environmental interaction instead of relying entirely on handcrafted control logic.
 
 To enable adaptive autonomous navigation in complex suburban environments, we implemented a Deep Q-Network (DQN)-based reinforcement learning framework inside Microsoft AirSim. Unlike traditional global path planners that rely on static map assumptions, the RL agent directly learns navigation policies through continuous interaction with the environment.
 
@@ -112,24 +122,35 @@ A rectangular Region of Interest (ROI) was introduced to limit the training area
 
 #### 4.1.1 State Space
 
-The agent state vector combines multiple sources of spatial and safety information:
-- discretized LiDAR distance sectors,
-- relative goal position,
-- drone altitude,
-- velocity-related information,
-- local obstacle proximity.
+The agent state vector combines multiple sources of spatial and safety information into a fixed-length observation representation suitable for DQN training.
 
-This state representation allows the policy to jointly reason about:
-- obstacle avoidance,
-- directional movement,
+The final observation vector contains:
+
+- discretized LiDAR obstacle sectors,
+- relative goal direction and distance,
+- altitude information,
+- local obstacle proximity,
+- additional navigation-related state features.
+
+The LiDAR point cloud is compressed into angular sectors to reduce dimensionality while preserving directional obstacle awareness. This produces a compact representation that remains computationally tractable during large-scale RL training.
+
+The final state dimension used during training is 112.
+
+The majority of the state vector is composed of discretized LiDAR-sector observations, while the remaining dimensions encode goal-relative and altitude-related navigation information.
+
+This state representation enables the policy to jointly reason about:
+
+- long-range goal progression,
+- local obstacle avoidance,
 - altitude stabilization,
-- long-range goal progression.
+- spatial safety constraints.
 
-Unlike traditional 2D navigation tasks, our environment requires simultaneous control in both horizontal and vertical dimensions, significantly increasing policy complexity.
+Unlike traditional 2D navigation tasks, the drone must simultaneously operate in both horizontal and vertical dimensions, significantly increasing policy complexity.
 
 #### 4.1.2 Action Space
 
-We adopted a discrete action space to improve DQN training stability. The available actions include:
+The action space is discretized into a finite set of drone control commands to improve DQN training stability.
+The available actions include:
 - forward movement,
 - yaw-left rotation,
 - yaw-right rotation,
@@ -137,7 +158,33 @@ We adopted a discrete action space to improve DQN training stability. The availa
 - descend,
 - hover stabilization.
 
-Although continuous control methods such as PPO or SAC may provide smoother motion, discrete DQN training was substantially easier to stabilize during early experimentation.
+Each action corresponds to a predefined low-level motion command executed inside AirSim.
+
+Although continuous-control algorithms such as PPO or SAC may eventually provide smoother navigation behavior, discretized DQN control proved substantially easier to stabilize during early-stage experimentation and debugging.
+
+#### 4.1.3 Simulation Modifications and Sensor Emulation
+
+Several modifications were made to the default AirSim environment to support stable RL training and autonomous drone navigation experiments.
+
+First, a constrained Region of Interest (ROI) was introduced to prevent meaningless large-scale exploration outside the intended operational area. This significantly reduced replay-buffer pollution caused by long random trajectories.
+
+Second, the drone sensing system was redesigned around a LiDAR-based obstacle representation. Instead of using raw point clouds directly, the LiDAR observations were compressed into discretized angular sectors to produce a fixed-length state representation suitable for DQN training.
+
+Altitude constraints were also introduced to stabilize 3D navigation behavior. The drone was restricted to a safe operational flight range between minimum and maximum altitude thresholds.
+
+Additional modifications included:
+- custom collision filtering logic,
+- trajectory recording and visualization,
+- altitude monitoring,
+- ROI boundary detection,
+- obstacle-distance safety metrics,
+- reward instrumentation for debugging and analysis.
+
+These modifications transformed the default AirSim environment into a controllable and analyzable RL training platform for autonomous drone navigation.
+
+The project primarily focuses on discrete-action reinforcement learning using DQN. Although continuous-control algorithms such as PPO or SAC may eventually provide smoother flight behavior, DQN was selected because it offers simpler debugging, more stable early-stage training behavior, and easier reward-function analysis during rapid experimentation.
+
+The discrete-action formulation also allowed clearer interpretation of learned navigation decisions during trajectory analysis.
 
 ### 4.2 Reward Engineering
 
@@ -168,6 +215,7 @@ As a result:
 
 Therefore, we introduced continuous reward shaping terms that provide immediate feedback during navigation.
 
+This dense reward formulation substantially improves sample efficiency by allowing the agent to receive useful learning signals even during unsuccessful episodes.
 
 #### 4.2.2 Progress-based Navigation Reward
 
@@ -218,8 +266,24 @@ This hierarchical penalty structure enables:
 
 The policy therefore learns not only to avoid collisions, but also to maintain safe obstacle margins during flight.
 
+#### 4.2.4 Sensor Simulation and Perception Assumptions
 
-#### 4.2.4 Goal Reward
+The primary perception sensor used in this project is a simulated LiDAR sensor provided by AirSim.
+
+The LiDAR produces dense 3D point-cloud observations representing nearby obstacle geometry. To reduce computational complexity, the raw point cloud is compressed into discretized angular sectors before being passed into the RL state representation.
+
+This approach approximates the sensing behavior of real-world autonomous drones equipped with lightweight obstacle-detection sensors.
+
+Compared with camera-only perception systems, LiDAR-based sensing provides several advantages:
+- direct geometric obstacle distance estimation,
+- reduced dependence on lighting conditions,
+- simpler obstacle representation for RL training.
+
+However, the simulation remains an approximation of real-world sensing behavior. Real drone systems would likely contain additional noise, sensor degradation, latency, and localization uncertainty.
+
+The project therefore focuses primarily on navigation-policy learning rather than full sim-to-real deployment.
+
+#### 4.2.5 Goal Reward
 
 A large terminal reward is assigned when the drone reaches the target region:
 
@@ -233,9 +297,11 @@ This reward defines the primary optimization objective of the navigation task.
 Once the goal is reached, the episode terminates immediately.
 
 
-#### 4.2.5 Altitude Regulation
+#### 4.2.6 Altitude Regulation
 
 Unlike many 2D RL navigation tasks, our environment requires stable 3D flight control.
+
+Without explicit altitude regulation, the drone frequently learns unstable vertical exploration behaviors that reduce navigation efficiency and increase collision risk.
 
 To prevent unrealistic altitude behavior, we introduced altitude-related constraints and energy penalties.
 
@@ -268,7 +334,7 @@ too_low_penalty = -50.0
 This mechanism stabilizes vertical behavior and prevents unsafe flight trajectories.
 
 
-#### 4.2.6 ROI Boundary Constraint
+#### 4.2.7 ROI Boundary Constraint
 
 To prevent uncontrolled exploration outside the training area, we introduced ROI boundary penalties.
 
@@ -295,7 +361,7 @@ This significantly improves:
 Importantly, the hard constraint does not eliminate failures entirely. Instead, it reshapes the failure distribution into more meaningful task-oriented exploration patterns.
 
 
-#### 4.2.7 Collision Termination
+#### 4.2.8 Collision Termination
 
 Real collisions are detected using AirSim collision feedback combined with custom filtering logic.
 
@@ -309,9 +375,31 @@ The episode terminates immediately.
 
 This terminal constraint strongly reinforces safe navigation behavior.
 
+An important design principle of the reward system is the separation between recoverable violations and terminal failures.
+
+Events such as excessive altitude or ROI violations are treated as recoverable and primarily penalized through negative rewards. In contrast, collisions and extremely low-altitude failures immediately terminate the episode.
+
+This distinction allows the agent to continue exploring after minor navigation mistakes while still strongly discouraging catastrophic unsafe behavior.
+
 ### 4.3 Training Stability Analysis
 
 To evaluate policy learning behavior, we analyzed reward convergence, success-rate evolution, training loss, and safety-related metrics.
+
+During training, several learning milestones were consistently observed.
+
+In the early exploration phase (approximately 0–50 episodes), the agent exhibited highly unstable behavior, including random movement, excessive altitude changes, and frequent collisions.
+
+Between approximately 50–150 episodes, the drone gradually learned basic altitude stabilization and obstacle-aware movement. During this stage, collision frequency began to decrease noticeably.
+
+Goal-reaching behavior first emerged consistently after roughly 250 episodes under the hard-boundary setting. The agent began to generate more directed trajectories instead of purely exploratory motion.
+
+The corresponding soft-boundary setting required substantially longer exploration before comparable navigation behavior emerged.
+
+After approximately 400 episodes, successful navigation became significantly more stable, with smoother trajectories, improved obstacle avoidance, and reduced timeout behavior.
+
+Across the hard-boundary and soft-boundary experiments, the RL agent was trained for 500 and 800 simulated flight episodes respectively.
+
+These milestones indicate that reward shaping and boundary constraints substantially accelerated policy learning within the AirSim environment.
 
 Before examining individual training curves, we summarize the overall performance of the hard-boundary and soft-boundary reward settings. The hard-boundary setting achieved a substantially higher goal-reaching rate, lower collision rate, and lower timeout rate, while the soft-boundary setting produced longer unstable trajectories and more frequent failures.
 
@@ -582,31 +670,68 @@ Future work may explore:
 
 ## 5. System Integration, Limitations, and Future Work
 
-### 5.1 Integrated System Perspective
-- A* provides global structure.
-- APF provides reactive local avoidance.
-- FSM recovery handles APF local-minimum/deadlock cases.
-- RL explores a learned alternative for local 3D navigation.
-- The project should be presented as a comparison and integration of classical and learning-based navigation, not as RL replacing A*/APF.
+### 5.1 Integration of Classical and RL Navigation
 
-### 5.2 Comparison Between Classical and RL Navigation
-- A*: deterministic, interpretable, efficient, but static-map dependent.
-- APF/FSM: reactive and lightweight, but sensitive to local minima and parameter tuning.
-- DQN: adaptive and data-driven, but expensive to train and sensitive to reward design.
-- Best practical system: A* for global waypoint planning + RL/APF for local control.
+This project explored both classical planning-based navigation methods and reinforcement learning-based autonomous control within the AirSim environment.
+
+The classical navigation pipeline combines:
+
+- A* global path planning,
+- Artificial Potential Field (APF) local obstacle avoidance,
+- FSM-based recovery mechanisms.
+
+These methods provide strong interpretability and efficient deterministic navigation behavior.
+
+In contrast, the reinforcement learning system directly learns navigation behavior through interaction with the environment. Instead of relying on manually designed motion rules, the DQN agent gradually learns obstacle avoidance, altitude regulation, and directional navigation policies through reward optimization.
+
+Rather than treating RL as a complete replacement for classical navigation, the results suggest that the two approaches are complementary.
+
+This hybrid perspective is likely more practical for real-world autonomous systems, where global planning reliability and local adaptive behavior are both necessary.
+
+A practical autonomous drone system could combine:
+- A* for long-range waypoint planning,
+- APF or RL for local navigation control,
+- FSM logic for failure recovery and execution monitoring.
+
+### 5.2 Safety Monitoring and Execution Constraints
+
+Several execution-monitoring mechanisms were introduced to improve navigation safety during training and evaluation.
+
+These include:
+
+- collision monitoring,
+- minimum altitude protection,
+- maximum altitude constraints,
+- ROI boundary monitoring,
+- obstacle-distance safety penalties.
+
+Together, these mechanisms act as a lightweight safety layer that prevents the drone from remaining in highly unsafe flight states for extended periods.
+
+Although these protections remain simplified compared with real-world autonomous aviation systems, they significantly improve training stability and reduce catastrophic exploration behavior.
+
 
 ### 5.3 Current Limitations
-- Single-map training/evaluation.
-- Static obstacle environment.
-- DQN discrete action space causes less smooth motion.
-- Reward design remains hand-engineered.
-- RL generalization to new maps is not yet proven.
-- Dense trees/obstacles still cause collision or timeout cases.
+
+Several limitations remain in the current project implementation.
+
+First, all RL experiments were conducted within a single simulated AirSim environment. The generalization capability of the learned policy across multiple maps or unseen environments has not yet been evaluated.
+
+Second, the current DQN implementation uses discretized actions. While this improves training stability, it also limits trajectory smoothness compared with continuous-control methods.
+
+Third, obstacle perception relies on simplified LiDAR sector compression. Although computationally efficient, this representation loses part of the original geometric detail contained in the raw point cloud.
+
+Finally, the environment contains only static obstacles. Dynamic obstacle interaction and multi-agent coordination remain unexplored.
 
 ### 5.4 Future Work
-- Continuous-control RL: PPO/SAC.
-- Curriculum learning: 10m → 6m → 3m altitude.
-- Domain randomization across maps.
-- Dynamic obstacles.
-- Better LiDAR representation, possibly CNN/Transformer over point-grid observations.
-- Hybrid planner: A* generates subgoals, RL handles local movement.
+
+Several extensions could significantly improve the current system.
+
+Potential future directions include:
+- continuous-control reinforcement learning using PPO or SAC,
+- curriculum learning across multiple altitude ranges,
+- dynamic obstacle environments,
+- domain randomization for sim-to-real transfer,
+- transformer-based or CNN-based LiDAR feature extraction,
+- hybrid planning systems combining A* and RL.
+
+Future work may also explore multi-drone coordination and real-world autonomous flight deployment.
