@@ -1,9 +1,6 @@
 # How to build up the environment and run the program
-
 **Video Demo**
-
-
-
+[![Autonomous Drone Navigation Demo](https://img.youtube.com/vi/a9YAp_fo9fU&t=2s/maxresdefault.jpg)](https://www.youtube.com/watch?v=a9YAp_fo9fU&t=2s)
 
 
 
