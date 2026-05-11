@@ -1,0 +1,39 @@
+===== Basic Summary =====
+Total episodes: 800
+
+Result counts:
+result
+timeout         373
+goal_reached    221
+collision       163
+too_low          43
+Name: count, dtype: int64
+
+Result rates:
+result
+timeout         0.46625
+goal_reached    0.27625
+collision       0.20375
+too_low         0.05375
+Name: proportion, dtype: float64
+
+Reward mean:
+-7015.805825069875
+Reward max:
+378.7561361858528
+Reward min:
+-225698.84416068735
+
+Final distance mean:
+31.96107029588133
+
+Final altitude mean:
+12.566224065572023
+
+Min lidar mean:
+7.39651073768735
+
+Episodes ever too high:
+101
+Too high rate:
+0.12625
